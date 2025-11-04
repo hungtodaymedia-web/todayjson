@@ -19,10 +19,18 @@ const App: React.FC = () => {
         sceneCount: 0,
         totalDuration: 0,
         totalWords: 0,
+        apiKeys: '',
     });
 
     const [isLoading, setIsLoading] = useState(false);
     const [notification, setNotification] = useState<{ message: string; type: NotificationType } | null>(null);
+
+    useEffect(() => {
+        const savedApiKeys = localStorage.getItem('geminiApiKeys');
+        if (savedApiKeys) {
+            setState(prevState => ({ ...prevState, apiKeys: savedApiKeys }));
+        }
+    }, []);
 
     const showNotification = (message: string, type: NotificationType, duration: number = 3000) => {
         setNotification({ message, type });
@@ -31,14 +39,24 @@ const App: React.FC = () => {
         }, duration);
     };
 
+    const handleApiKeysChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const keys = e.target.value;
+        setState(prevState => ({ ...prevState, apiKeys: keys }));
+        localStorage.setItem('geminiApiKeys', keys);
+    };
+
     const handleConvert = useCallback(async () => {
+        if (!state.apiKeys.trim()) {
+            showNotification('⚠️ Vui lòng nhập ít nhất một API Key!', 'warning');
+            return;
+        }
         if (!state.inputText.trim() || !state.characterDescription.trim()) {
             showNotification('⚠️ Vui lòng nhập mô tả nhân vật và kịch bản!', 'warning');
             return;
         }
 
         setIsLoading(true);
-        showNotification('🤖 AI đang tạo cảnh... Vui lòng chờ.', 'success', 5000);
+        showNotification('🤖 AI đang tạo cảnh... Vui lòng chờ.', 'info', 5000);
 
         try {
             const result = await convertScriptToJsons({
@@ -46,6 +64,7 @@ const App: React.FC = () => {
                 inputText: state.inputText,
                 aspectRatio: state.aspectRatio,
                 voiceInstructions: state.voiceInstructions,
+                apiKeys: state.apiKeys,
             });
 
             setState(prevState => ({
@@ -65,7 +84,7 @@ const App: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [state.characterDescription, state.inputText, state.aspectRatio, state.voiceInstructions]);
+    }, [state]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -131,14 +150,16 @@ const App: React.FC = () => {
                     </h1>
                     <p className="mt-2 text-purple-200 text-sm sm:text-base">Kịch bản → JSON Cài Đặt & Phân Cảnh</p>
                     <span className="inline-block bg-white/10 text-purple-300 px-4 py-1 rounded-full text-xs font-semibold mt-4">
-                        v6.1 Hỗ trợ bởi AI
+                        v6.2 Hỗ trợ nhiều API Key
                     </span>
                 </header>
 
                 <main className="grid grid-cols-1 xl:grid-cols-2 gap-6 p-6">
                     {/* Panel 1: Input */}
                     <Panel title="📝 Dữ Liệu Đầu Vào">
-                        <div className="grid grid-cols-1 gap-4 mb-4">
+                        <TextAreaInput label="🔑 API Keys (mỗi key một dòng)" id="apiKeys" value={state.apiKeys} onChange={handleApiKeysChange} placeholder="Nhập một hoặc nhiều API key tại đây..." className="h-24" />
+
+                        <div className="grid grid-cols-1 gap-4">
                              <div className="col-span-1">
                                 <label htmlFor="aspectRatio" className="block text-xs font-semibold text-purple-300 mb-1">Tỷ Lệ Khung Hình</label>
                                 <select id="aspectRatio" value={state.aspectRatio} onChange={e => setState({...state, aspectRatio: e.target.value})} className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-purple-500 focus:border-purple-500 transition">
@@ -159,9 +180,9 @@ const App: React.FC = () => {
                         </button>
                         <InfoBox title="Cách Hoạt Động">
                            <ul className="space-y-1">
+                                <li>Nhập nhiều API key để dự phòng khi một key bị lỗi hoặc quá tải.</li>
                                 <li>Nhập mô tả nhân vật & bối cảnh để AI tạo JSON cài đặt.</li>
                                 <li>Kịch bản của bạn được chia thành các cảnh dựa trên cài đặt.</li>
-                                <li>Tệp JSONL chứa các cảnh được tạo cho VEO.</li>
                             </ul>
                         </InfoBox>
                     </Panel>

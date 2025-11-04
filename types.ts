@@ -8,9 +8,10 @@ export interface AppState {
   sceneCount: number;
   totalDuration: number;
   totalWords: number;
+  apiKeys: string;
 }
 
-export type NotificationType = 'success' | 'warning' | 'error';
+export type NotificationType = 'success' | 'warning' | 'error' | 'info';
 
 export interface Character {
   id: string;
@@ -62,6 +63,7 @@ export interface ConversionInput {
     inputText: string;
     aspectRatio: string;
     voiceInstructions: string;
+    apiKeys: string;
 }
 
 export interface ConversionResult {

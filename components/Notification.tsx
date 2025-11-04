@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import type { NotificationType } from '../types';
 
@@ -19,6 +18,7 @@ const Notification: React.FC<NotificationProps> = ({ message, type, onClose }) =
         success: 'bg-green-500',
         warning: 'bg-yellow-500',
         error: 'bg-red-500',
+        info: 'bg-blue-500',
     };
 
     return (

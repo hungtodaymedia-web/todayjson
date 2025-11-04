@@ -1,6 +1,7 @@
-import { GoogleGenAI, Type } from '@google/genai';
+import { Type } from '@google/genai';
 import type { Character, Background, ConversionInput, ConversionResult, Scene } from '../types';
 import { POSES, ACTION_FLOWS, FOLEY_BASE, getVisualStyleAndNegativePrompt } from '../constants';
+import { generateContentWithRotation } from './geminiService';
 
 interface ScenePlan {
   scene_text: string;
@@ -12,8 +13,7 @@ const countWords = (text: string): number => {
     return text.trim().split(/\s+/).length;
 };
 
-const generateSetupJson = async (description: string, aspectRatio: string): Promise<any> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const generateSetupJson = async (description: string, aspectRatio: string, apiKeys: string): Promise<any> => {
     const { visualStyle, negativePrompt } = getVisualStyleAndNegativePrompt(aspectRatio);
 
     const prompt = `You are an expert video production assistant. Your task is to analyze a detailed description and create a complete setup JSON object. The JSON must have four top-level keys: 'character_lock', 'background_lock', 'visual_style', and 'negative_prompt'.
@@ -94,7 +94,7 @@ ${negativePrompt}
     };
 
     try {
-        const response = await ai.models.generateContent({
+        const response = await generateContentWithRotation(apiKeys, {
             model: 'gemini-2.5-flash',
             contents: prompt,
             config: {
@@ -106,12 +106,11 @@ ${negativePrompt}
         return JSON.parse(response.text);
     } catch (e) {
         console.error("Gemini API Error (Setup Generation):", e);
-        throw new Error("Không thể tạo JSON cài đặt từ AI. Vui lòng kiểm tra console để biết chi tiết.");
+        throw new Error(`Không thể tạo JSON cài đặt từ AI. Lỗi: ${e instanceof Error ? e.message : String(e)}`);
     }
 }
 
-const generateScenePlans = async (inputText: string): Promise<ScenePlan[]> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const generateScenePlans = async (inputText: string, apiKeys: string): Promise<ScenePlan[]> => {
     const prompt = `You are a meticulous AI video production director governed by a strict set of laws. Your primary task is to process a Vietnamese script, translate it into English, and break it down into a sequence of scenes for a VEO video generation pipeline. You must adhere to the following laws without fail.
 
 **LAW 1: ABSOLUTE CONTENT INTEGRITY (VERBATIM LOCK)**
@@ -151,7 +150,7 @@ ${inputText}
     };
     
     try {
-        const response = await ai.models.generateContent({
+        const response = await generateContentWithRotation(apiKeys, {
             model: 'gemini-2.5-pro',
             contents: prompt,
             config: {
@@ -166,14 +165,19 @@ ${inputText}
         return result as ScenePlan[];
     } catch (e) {
         console.error("Gemini API Error (Scene Planning):", e);
-        throw new Error("Không thể tạo kế hoạch phân cảnh từ AI. Vui lòng kiểm tra console.");
+        throw new Error(`Không thể tạo kế hoạch phân cảnh từ AI. Lỗi: ${e instanceof Error ? e.message : String(e)}`);
     }
 };
 
 export const convertScriptToJsons = async (input: ConversionInput): Promise<ConversionResult> => {
-    const { characterDescription, inputText, aspectRatio, voiceInstructions } = input;
+    const { characterDescription, inputText, aspectRatio, voiceInstructions, apiKeys } = input;
 
-    const setupJsonData = await generateSetupJson(characterDescription, aspectRatio);
+    // Run AI generation tasks in parallel
+    const [setupJsonData, scenePlan] = await Promise.all([
+        generateSetupJson(characterDescription, aspectRatio, apiKeys),
+        generateScenePlans(inputText, apiKeys)
+    ]);
+
     const character = setupJsonData?.character_lock?.CHAR_1;
     const background = setupJsonData?.background_lock?.BACKGROUND_1;
 
@@ -181,8 +185,6 @@ export const convertScriptToJsons = async (input: ConversionInput): Promise<Conv
         throw new Error("AI không thể tạo dữ liệu nhân vật hợp lệ từ mô tả.");
     }
     
-    const scenePlan = await generateScenePlans(inputText);
-
     const visualStyle = setupJsonData.visual_style;
     const negativePrompt = setupJsonData.negative_prompt;
     let totalDuration = 0;
