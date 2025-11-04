@@ -1,0 +1,5 @@
+{
+  "name": "Bác sĩ + minh hoạ khác",
+  "description": "Một công cụ nâng cao để chuyển đổi mô tả nhân vật, chi tiết bối cảnh và kịch bản thành các tệp JSON có cấu trúc riêng biệt cho Cài đặt (Setup) và Phân cảnh (Scenes), được định dạng đặc biệt cho quy trình tạo video VEO 3.",
+  "requestFramePermissions": []
+}
